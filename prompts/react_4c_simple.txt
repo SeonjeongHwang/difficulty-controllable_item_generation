@@ -1,0 +1,134 @@
+In Reading Comprehension assessments, a **Factual Information Question** evaluates a reader’s ability to understand and recall explicitly stated facts in a passage.
+This question type presents a **reading passage** along with a **statement**, and the examinee must determine whether the statement is supported by the factual content of the passage.
+
+Example (Factual Information Question)
+
+Passage:
+Many birds fly south for the winter to find warmer weather and more food. Some birds travel thousands of kilometers to reach their destination. The Arctic Tern, for example, migrates from the Arctic to Antarctica each year. Migration helps birds survive harsh conditions during the colder months.
+
+Statement:
+The Arctic Tern migrates from Antarctica to the Arctic every winter.
+
+---
+
+Your task is to generate a **passage–statement pair** suitable for a **factual information question**, where a reader must decide whether the statement is supported by the passage. Generate a passage and a statement that satisfy all of the following attributes. Make sure you strictly follow the definition of each attribute and value.
+
+Attribute Definitions:
+
+1. Passage Length
+   The number of sentences in the passage:
+   - short: 15 sentences or fewer
+   - medium: 16–20 sentences
+   - long: more than 20 sentences
+
+2. Sentence Length
+   The number of words per sentence in the passage:
+   - short: 15 words or fewer
+   - medium: 16–20 words
+   - long: more than 20 words
+
+3. Vocab Level
+   All words in the passage and statement must belong to or be simpler than the given CEFR level:
+   - A: A1–A2 only
+   - B: B1–B2 or lower
+   - C: C1–C2 or lower
+   You must include at least one word from the specified level. Do not use words above the level.
+
+4. Statement Propositions
+   A proposition is an atomic, self-contained unit of meaning. The number of propositions in the statement must equal the given value. Each proposition should convey a distinct fact or claim.
+   The statement must be written as a **single sentence**. Even if it contains multiple propositions, they must be expressed within a single, grammatically correct sentence.
+   **Single-proposition statement example**
+   - The Eiffel Tower is located in Paris.
+   - Elephants are the largest land animals.
+   - Mount Everest is the tallest mountain in the world.
+   **Two-proposition statement example**
+   - She practices every day to improve her piano skills. (She practices every day. & She practices to improve her piano skills.)
+   - The Eiffel Tower is located in Paris and was completed in 1889. (The Eiffel Tower is located in Paris. & he Eiffel Tower was completed in 1889.)
+   - Painted with vibrant colors, the building stands out among the gray surroundings. (The building was painted with vibrant colors. & The building stands out among the gray surroundings.)
+
+---
+
+Solve an educational item generation task with interleaving Thought, Action(s), Observation steps. Multiple Actions can follow a single Thought.
+Thought can reason about the current situation, and Action can be two types:
+(1) Write_Passage[(1) first sentence (2) second sentence ...], which writes the entire passage with each sentence numbered.
+(2) Write_Statement[statement], which writes a statement.
+You must only take these six actions and must strictly follow the exact format.
+
+---
+
+Here is a portion of actual task performed:
+
+Source Text:
+    In recent years, the food industry in China has been under intense scrutiny due to a series of alarming food scandals that have shaken public confidence in what is on our plates. The widespread number of food scandals in China is making many people pause before they put their chopsticks in their mouths. Consumers are left contemplating the safety of the food they are about to consume, wondering if it is clean, healthy, and nutritious, or if it contains something harmful that could potentially cause disease. \n\nThe dilemma becomes even more complicated when we consider the nature of our modern diet. Most of the food we eat today is processed food. This particular phenomenon means that the foods we buy in stores and supermarkets, especially packaged foods, are typically prepared in factories where various substances\u2014often chemicals\u2014are added during production. These chemicals serve multiple purposes: they are intended to enhance the appearance of the food, improve its flavor, and extend its shelf life. \n\nLegally, these chemicals are supposed to be harmless, and there are regulations in place that dictate which chemicals can and cannot be utilized in food production. However, in practice, these laws are not always strictly enforced, and some producers take the risk of flouting these regulations. For example, a recent investigation uncovered that a producer of steamed buns in Zhejiang Province was discovered to be breaking the law. He was caught adding yellow dye and other banned chemicals to his buns and even resorted to recycling old buns, using them to make new buns that were sold to unsuspecting customers\u2014most of whom were students in schools. \n\nThis raises a critical question: Why did he engage in such reckless and unethical practices? Why did he break the law and endanger people's health? The answer is simple and upsetting: he wanted to make more money. This moral failing echoes throughout the food scandal landscape in China and illustrates a troubling trend. In an era of rapid economic development and fierce competition, it seems that too many individuals and companies are primarily focused on financial gain, often neglecting the moral and ethical implications of their actions on public health and safety. The repeated instances of compromised food standards remind us of the importance of accountability and integrity in our food systems, and the urgent need for overall reform in the industry to prioritize consumer well-being over profit.
+Constraints:
+    - Passage Length: medium
+    - Sentence Length: medium
+    - Vocab Level: B
+    - Statement Propositions: 2
+
+Thought 1: To create a factual information question based on the provided constraints and source content, I need to write a medium-length passage (16–20 sentences) using medium-length sentences (16–20 words), restricted to CEFR level B vocabulary, and then produce a two-proposition statement. First, I will write the passage with all required constraints and ensure the content matches the themes and tone of the source text.
+Action 1: Write_Passage[
+(1) In China, concerns about food safety have grown due to many serious food scandals in recent years.
+(2) These scandals have damaged public trust and made consumers careful about the food they buy and eat.
+(3) People now often question whether their food is safe, clean, and free of harmful substances.
+(4) One reason for this worry is the large amount of processed food people eat in modern life.
+(5) Most packaged foods are made in factories where chemicals are often added during production.
+(6) These added chemicals improve appearance, enhance taste, or help the food last longer on store shelves.
+(7) Although these chemicals are legal, laws clearly state which ones are allowed and which are not.
+(8) Unfortunately, the rules are not always followed, and some producers break the law to increase profits.
+(9) A known case involved a steamed bun maker in Zhejiang Province who used banned chemicals in his products.
+(10) He also reused old buns by mixing them into new ones, which he sold to schoolchildren.
+(11) This act not only broke food safety laws but also risked the health of many innocent consumers.
+(12) When asked why he did it, he admitted that his only goal was to make more money.
+(13) His actions are part of a larger problem where some people care more about profit than safety.
+(14) With strong competition and fast economic growth, many producers feel pressure to earn as much as possible.
+(15) This leads them to ignore ethics and the potential harm their choices may cause to the public.
+(16) These repeated cases show the urgent need for change and stronger rules in the food industry.
+(17) Better checks by the government and clearer production steps could help rebuild consumer trust.
+(18) People deserve to feel confident that their food is safe and made with their health in mind.
+(19) Without serious change, these problems will continue and could grow even worse in the future.
+(20) It is clear that profit should never come before the safety and well-being of the public.
+]
+Observation 1:
+- The number of sentences in the passage: 20 -> (satisfied)
+- The number of words per sentence in the passage:
+sentence (1) - 17 words -> (satisfied)
+sentence (2) - 17 words -> (satisfied)
+sentence (3) - 15 words -> (unsatisfied)
+sentence (4) - 17 words -> (satisfied)
+sentence (5) - 14 words -> (unsatisfied)
+sentence (6) - 16 words -> (satisfied)
+sentence (7) - 16 words -> (satisfied)
+sentence (8) - 16 words -> (satisfied)
+sentence (9) - 18 words -> (satisfied)
+sentence (10) - 16 words -> (satisfied)
+sentence (11) - 17 words -> (satisfied)
+sentence (12) - 17 words -> (satisfied)
+sentence (13) - 17 words -> (satisfied)
+sentence (14) - 17 words -> (satisfied)
+sentence (15) - 17 words -> (satisfied)
+sentence (16) - 16 words -> (satisfied)
+sentence (17) - 14 words -> (unsatisfied)
+sentence (18) - 17 words -> (satisfied)
+sentence (19) - 15 words -> (unsatisfied)
+sentence (20) - 17 words -> (satisfied)
+- Vocabulary Levels used in the passage:
+A1-A2: ['taste', 'ethic', 'choice', 'health', 'cause', 'large', 'rule', 'modern', 'appearance', 'industry', 'feel', 'recent', 'allow', 'new', 'lead', 'process', 'use', 'public', 'long', 'free', 'law', 'need', 'involve', 'life', 'food', 'clear', 'fast', 'sell', 'goal', 'unfortunately', 'grow', 'product', 'competition', 'clearly', 'public', 'strong', 'future', 'old', 'safe', 'repeat', 'continue', 'factory', 'improve', 'case', 'reason', 'mind', 'help', 'people', 'store', 'year', 'question', 'earn', 'increase', 'possible', 'follow', 'problem', 'state', 'control', 'care', 'money']
+B1-B2: ['enhance', 'profit', 'chemical', 'potential', 'confident', 'growth', 'harm', 'admit', 'innocent', 'harmful', 'risk', 'trust', 'act', 'package', 'legal', 'pressure', 'economic', 'safety', 'consumer', 'damage', 'process', 'deserve', 'ban', 'producer', 'mix', 'substance', 'urgent', 'shelf', 'ignore', 'concern', 'rebuild', 'scandal', 'worry', 'production']
+C1-C2: ['transparent', 'reform', 'enforcement', 'cautious']
+-> (unsatisfied)
+- Vocabulary Levels used in the statement: -
+- Statement Propositions: -
+
+---
+
+Here is the task.
+
+Source Text:
+    { source_text }
+Constraints:
+    - Passage Length: { passage_length }
+    - Sentence Length: { sentence_length }
+    - Vocab Level: { vocab_level }
+    - Statement Propositions: { statement_propositions }
+

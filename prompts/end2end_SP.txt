@@ -1,0 +1,101 @@
+In Reading Comprehension assessments, a **Factual Information Question** evaluates a reader’s ability to understand and recall explicitly stated facts in a passage.
+This question type presents a **reading passage** along with a **statement**, and the examinee must determine whether the statement is supported by the factual content of the passage.
+
+Example (Factual Information Question)
+
+Passage:
+Many birds fly south for the winter to find warmer weather and more food. Some birds travel thousands of kilometers to reach their destination. The Arctic Tern, for example, migrates from the Arctic to Antarctica each year. Migration helps birds survive harsh conditions during the colder months.
+
+Statement:
+The Arctic Tern migrates from Antarctica to the Arctic every winter.
+
+---
+
+Your task is to generate a **passage–statement pair** suitable for a **factual information question**, where a reader must decide whether the statement is supported by the passage. Generate a passage and a statement that satisfy all of the following attributes. Make sure you strictly follow the definition of each attribute and value.
+
+Attribute Definitions:
+
+1. Passage Length
+   The number of sentences in the passage:
+   - short: 15 sentences or fewer
+   - medium: 16–20 sentences
+   - long: more than 20 sentences
+
+2. Sentence Length
+   The number of words per sentence in the passage:
+   - short: 15 words or fewer
+   - medium: 16–20 words
+   - long: more than 20 words
+
+3. Vocab Level
+   All words in the passage and statement must belong to or be simpler than the given CEFR level:
+   - A: A1–A2 only
+   - B: B1–B2 or lower
+   - C: C1–C2 or lower
+   You must include at least one word from the specified level. Do not use words above the level.
+
+4. Statement Propositions
+   A proposition is an atomic, self-contained unit of meaning. The number of propositions in the statement must equal the given value. Each proposition should convey a distinct fact or claim.
+   The statement must be written as a **single sentence**. Even if it contains multiple propositions, they must be expressed within a single, grammatically correct sentence.
+   **Single-proposition statement example**
+   - The Eiffel Tower is located in Paris.
+   - Elephants are the largest land animals.
+   - Mount Everest is the tallest mountain in the world.
+   **Two-proposition statement example**
+   - She practices every day to improve her piano skills. (She practices every day. & She practices to improve her piano skills.)
+   - The Eiffel Tower is located in Paris and was completed in 1889. (The Eiffel Tower is located in Paris. & he Eiffel Tower was completed in 1889.)
+   - Painted with vibrant colors, the building stands out among the gray surroundings. (The building was painted with vibrant colors. & The building stands out among the gray surroundings.)
+
+5. Reasoning Type
+   The logical relationship between the passage and the statement must fall into exactly one of the following categories:
+   - Word Matching (WM): Statement appears in the almost same surface form as a sentence or phrase in the passage, with no change in word order or content words.
+   - Transformed Word Matching (TWM): Statement contains the same content words as the passage, but the sentence structure or phrase order has been rearranged.
+   - Paraphrasing (P): Statement preserves the meaning of a sentence in the passage but uses different lexical expressions, such as synonyms or rewordings.
+   - Transformed Paraphrasing (TP): Statement is a paraphrased version that has also been syntactically transformed or reordered.
+   - Inference (I): Statement cannot be derived through direct matching, paraphrasing, or structural transformation alone. It requires integrating multiple pieces of information or drawing conclusions that go beyond what is explicitly stated in the passage. 
+   - Not Enough Information (NEI): The truth of the statement cannot be determined based on the passage.
+
+6. Evidence Scope
+   The location and distribution of textual evidence required to verify the statement:
+   - Single: A single sentence in the passage contains all the information necessary to determine the truth of the statement.
+     - If a single sentence appears sufficient to refute the factuality of the statement, check whether the key entities in the statement are clearly and explicitly referred to in that sentence.
+     - If the sentence uses anaphoric expressions (such as pronouns or general references), consider whether the referent is central or frequently mentioned in the passage, such that its identity can be easily and unambiguously inferred.
+     - If the referent is not clearly identifiable from the sentence alone—especially when multiple possible antecedents exist—then the sentence that explicitly introduces or clarifies the referent should also be included as necessary evidence.  
+   - Inter: Information spread across multiple sentences must be integrated to arrive at a judgment.
+   - Insufficient: The passage does not provide enough information to determine the truth of the statement. This requires recognizing that the relevant information is missing, despite a full reading of the passage.
+     (Note: If reasoning_type = NEI, then evidence_scope must be Insufficient.)
+
+Instructions:
+
+Your task is to:
+Generate a **passage** that:
+   - Accurately reflects or reformulates content from the source text
+   - Satisfies all structural and lexical constraints
+Generate a **statement** that:
+   - Is written as a single sentence
+   - Has the required number of propositions
+   - Bears the specified reasoning relationship to the passage
+   - Meets the evidence scope criteria
+
+Do NOT include any explanation, reasoning process, or justification.
+Only return the final output in the following JSON format:
+
+{
+  "passage": "[GENERATED PASSAGE HERE]",
+  "statement": "[GENERATED STATEMENT HERE]"
+}
+
+Input:
+
+Source Text:
+{ document }
+
+Constraints:
+- Passage Length: { passage_length }
+- Sentence Length: { sentence_length }
+- Vocab Level: { vocab_level }
+- Statement Propositions: { statement_propositions }
+- Reasoning Type: { reasoning_type }
+- Evidence Scope: { evidence_scope }
+
+Output:
