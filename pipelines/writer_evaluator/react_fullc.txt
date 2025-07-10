@@ -46,16 +46,39 @@ Attribute Definitions:
    - The Eiffel Tower is located in Paris and was completed in 1889. (The Eiffel Tower is located in Paris. & he Eiffel Tower was completed in 1889.)
    - Painted with vibrant colors, the building stands out among the gray surroundings. (The building was painted with vibrant colors. & The building stands out among the gray surroundings.)
 
+5. Reasoning Type
+   The logical relationship between the passage and the statement must fall into exactly one of the following categories:
+   - Word Matching: The statement contains the same content words as a sentence or phrase in the passage, with either no structural change or a simple rearrangement of sentence or phrase order.
+   - Paraphrasing: The statement conveys the same meaning as part(s) of the passage but uses different lexical expressions, such as synonyms or rewordings; syntactic transformations or reordering may also occur.
+   - Inference: The statement cannot be derived through direct matching, paraphrasing, or structural transformation alone; it requires logically connecting multiple pieces of information or drawing conclusions that go beyond what is explicitly stated in the passage.
+   - Not Enough Information (NEI): The truth of the statement cannot be determined based on the information provided in the passage.
+
+6. Evidence Scope
+   The location and distribution of textual evidence required to verify the statement:
+   - Single: A single sentence in the passage contains all the information necessary to determine the truth of the statement.
+     - If a single sentence appears sufficient to refute the factuality of the statement, check whether the key entities in the statement are clearly and explicitly referred to in that sentence.
+     - If the sentence uses anaphoric expressions (such as pronouns or general references), consider whether the referent is central or frequently mentioned in the passage, such that its identity can be easily and unambiguously inferred.
+     - If the referent is not clearly identifiable from the sentence alone—especially when multiple possible antecedents exist—then the sentence that explicitly introduces or clarifies the referent should also be included as necessary evidence.  
+   - Inter: Information spread across multiple sentences must be integrated to arrive at a judgment.
+   - Insufficient: The passage does not provide enough information to determine the truth of the statement. This requires recognizing that the relevant information is missing, despite a full reading of the passage.
+     (Note: If reasoning_type = NEI, then evidence_scope must be Insufficient.)
+
 ---
 
 Solve an educational item generation task with interleaving Thought, Action(s), Observation steps. Multiple Actions can follow a single Thought.
 Thought can reason about the current situation, and Action can be six types:
-(1) Write_Passage[(1) first sentence (2) second sentence ...], which writes the entire passage with each sentence numbered, either for the first time or after deleting an earlier version. 
-(2) Insert_Sentence[(i) sentence], which insert a new sentence before the i-th sentence of the passage.
-(3) Remove_Sentence[i], which removes the i-th sentence of the passage.
-(4) Revise_Sentence[(i) sentence], which revises the i-th sentence of the passage.
-(5) Write_Statement[statement], which writes a statement. You can use this action when you write the statement for the first time or write a new statement targeting a different part of the passage.
-(6) Revise_Statement[statement], which revises the statement that has been previously written.
+(1) Write_Passage[(1) first sentence (2) second sentence ...]
+   - Writes the entire passage with each sentence numbered, either for the first time or after deleting an earlier version. 
+(2) Insert_Sentence[(i) sentence]
+   - Inserts a new sentence before the i-th sentence of the passage.
+(3) Remove_Sentence[i]
+   - Removes the i-th sentence of the passage.
+(4) Revise_Sentence[(i) sentence]
+   - Revises the i-th sentence of the passage.
+(5) Write_Statement[statement]
+   - Writes a statement. You can use this action when you write the statement for the first time or write a new statement targeting a different part of the passage.
+(6) Revise_Statement[statement]
+   - Revises the statement that has been previously written.
 You must only take these six actions and must strictly follow the exact format.
 
 ---
@@ -69,8 +92,10 @@ Constraints:
     - Sentence Length: medium
     - Vocab Level: B
     - Statement Propositions: 2
+    - Evidence Scope: Inter
+    - Reasoning Type: Inference
 
-Thought 1: To create a factual information question based on the provided constraints and source content, I need to write a medium-length passage (16–20 sentences) using medium-length sentences (16–20 words), restricted to CEFR level B vocabulary, and then produce a two-proposition statement. First, I will write the passage with all required constraints and ensure the content matches the themes and tone of the source text.
+Thought 1: To create a factual information question based on the provided constraints and source content, I need to write a medium-length passage (16–20 sentences) using medium-length sentences (16–20 words), restricted to CEFR level B vocabulary, and then produce a two-proposition statement. The reasoning type must be inference, and evidence must be spread across multiple sentences (Inter). First, I will write the passage with all required constraints and ensure the content matches the themes and tone of the source text.
 Action 1: Write_Passage[
 (1) In China, concerns about food safety have grown due to many serious food scandals in recent years.
 (2) These scandals have damaged public trust and made consumers careful about the food they buy and eat.
@@ -123,6 +148,8 @@ C1-C2: ['transparent', 'reform', 'enforcement', 'cautious']
 -> (unsatisfied)
 - Vocabulary Levels used in the statement: -
 - Statement Propositions: -
+- Evidence Scope: -
+- Reasoning Type: -
 Thought 2: To meet the "Sentence Length: medium" constraint, I need to revise the three sentences that are currently under 16 words (sentences 3, 5, 17, and 19). I also need to ensure all vocabulary stays at or below CEFR level B. No C-level vocabulary is present, so vocabulary is compliant. I will revise those sentences now to extend them within the 16–20 word range.
 Action 2:
 Revise_Sentence[(3) People now often question whether their food is safe, clean, and free of anything that could harm them.]
@@ -133,7 +160,7 @@ Observation 2:
 - The number of sentences in the passage: 20 -> (satisfied)
 - The number of words per sentence in the passage:
 sentence (1) - 17 words -> (satisfied)
-sentence (2) - 17 words -> (satisfied)
+sentence (2) - 17 words -> (satisfied)                                                                                                                                                                                                                        "gpusvr021320" 19:03 26-Jun-25
 sentence (3) - 18 words -> (satisfied)
 sentence (4) - 17 words -> (satisfied)
 sentence (5) - 17 words -> (satisfied)
@@ -159,7 +186,9 @@ C1-C2: ['cautious']
 -> (unsatisfied)
 - Vocabulary Levels used in the statement: -
 - Statement Propositions: -
-Thought 3: The word "cautious" is CEFR level C1, which violates the vocabulary level constraint (B-level max). I will revise the sentence containing "cautious" to use a B-level synonym such as "careful." This will resolve the final vocabulary compliance issue. Then, I will write a statement that (1) contains exactly two propositions and (2) remains within CEFR level B.
+- Evidence Scope: -
+- Reasoning Type: -
+Thought 3: The word "cautious" is CEFR level C1, which violates the vocabulary level constraint (B-level max). I will revise the sentence containing "cautious" to use a B-level synonym such as "careful." This will resolve the final vocabulary compliance issue. Then, I will write a statement that (1) contains exactly two propositions, (2) requires inference from multiple sentences (inter), and (3) remains within CEFR level B.
 Action 3:
 Revise_Sentence[(2) These scandals have damaged public trust and made consumers more careful about the food they buy and eat.]
 Write_Statement[Some producers ignore food safety laws, and this happens more often when they are under financial pressure.]
@@ -197,6 +226,8 @@ B1-B2: ['ignore', 'pressure', 'financial', 'safety', 'producer']
 C1-C2: []
 -> (satisfied)
 - Statement Propositions: ['Some producers ignore food safety laws.', 'This happens more often when producers are under financial pressure.'] -> (satisfied)
+- Evidence Scope: Inter
+- Reasoning Type: Inference
 
 ---
 
@@ -209,4 +240,6 @@ Constraints:
     - Sentence Length: { sentence_length }
     - Vocab Level: { vocab_level }
     - Statement Propositions: { statement_propositions }
+    - Evidence Scope: { evidence_scope }
+    - Reasoning Type: { reasoning_type }
 

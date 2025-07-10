@@ -61,7 +61,7 @@ class Propositionalizer:
         results = []
         batch_size = 8
         batch_offsets = list(range(0,len(examples), batch_size))
-        for batch_start_offset in tqdm.tqdm(batch_offsets, total=len(batch_offsets)):
+        for batch_start_offset in batch_offsets:
             mini_batch = examples[batch_start_offset:batch_start_offset+batch_size]
             
             inputs = self.tokenizer(mini_batch, padding=True, truncation=False, return_tensors='pt')
@@ -106,12 +106,14 @@ def get_values(passage, statement):
         sents = nltk.sent_tokenize(passage)
         passage_length = len(sents)
         
-        if passage_length <= 15:
+        if 6 <= passage_length <= 15:
             passage_length_level = "short"
         elif 15 < passage_length <= 20:
             passage_length_level = "medium"
-        else:
+        elif passage_length <= 30:
             passage_length_level = "long"
+        else:
+            passage_length_level = "out_of_range"
             
         prediction["passage_length"] = passage_length_level
         detail["passage_length"] = passage_length
@@ -128,7 +130,7 @@ def get_values(passage, statement):
                     continue
                 if token.lemma_.lower() in stop_words:
                     continue
-                passage_words.append((token.lemma_.lower(), token.pos_))
+                passage_words.append((token.lemma_.lower(), token.pos_, token.text))
         sentence_length = np.mean(sentence_length_list)
         
         if sentence_length <= 15:
@@ -144,7 +146,7 @@ def get_values(passage, statement):
         ## Vocab Level
         levels = []
         passage_vocab_levels = []
-        for lemma, pos in passage_words:
+        for lemma, pos, word in passage_words:
             level = None
             if lemma in dictionary:
                 if len(dictionary[lemma].keys()) == 1:
@@ -161,7 +163,7 @@ def get_values(passage, statement):
                             continue
             if level:
                 levels.append(level)
-                passage_vocab_levels.append((lemma, pos, level))
+                passage_vocab_levels.append((word, pos, level))
                     
         passage_vocab_levels = list(set(passage_vocab_levels)) 
         if len(levels) == 0:
@@ -181,11 +183,11 @@ def get_values(passage, statement):
                 continue
             if token.lemma_.lower() in stop_words:
                 continue
-            statement_words.append((token.lemma_.lower(), token.pos_))
+            statement_words.append((token.lemma_.lower(), token.pos_, token.text))
             
         levels = []
         statement_vocab_levels = []
-        for lemma, pos in statement_words:
+        for lemma, pos, word in statement_words:
             level = None
             if lemma in dictionary:
                 if len(dictionary[lemma].keys()) == 1:
@@ -202,7 +204,7 @@ def get_values(passage, statement):
                             continue
             if level:
                 levels.append(level)
-                statement_vocab_levels.append((lemma, pos, level))
+                statement_vocab_levels.append((word, pos, level))
                         
         statement_vocab_levels = list(set(statement_vocab_levels))
         if len(levels) == 0:
@@ -225,22 +227,28 @@ def observe(constraints, detail, is_full_constraints=False):
     finish = True
     output = ""
     
+    constraints_satisfactions = dict()
+    for k in constraints.keys():
+        constraints_satisfactions[k] = True
+    
     ### Passage Length
     if detail["passage_length"] != None:
         passage_length_satisfaction = "unsatisfied"
-        if constraints["passage_length"] == "short" and detail["passage_length"] <= 15:
+        if constraints["passage_length"] == "short" and 6 <= detail["passage_length"] <= 15:
             passage_length_satisfaction = "satisfied"
-        elif constraints["passage_length"] == "medium" and 15 < detail["passage_length"] <= 20:
+        elif constraints["passage_length"] == "medium" and 16 <= detail["passage_length"] <= 20:
             passage_length_satisfaction = "satisfied"
-        elif constraints["passage_length"] == "long" and 20 <= detail["passage_length"]:
+        elif constraints["passage_length"] == "long" and 21 <= detail["passage_length"] <= 30:
             passage_length_satisfaction = "satisfied"
         
         output += f'- The number of sentences in the passage: {detail["passage_length"]} -> ({passage_length_satisfaction})\n'
         if passage_length_satisfaction == "unsatisfied":
             finish = False
+            constraints_satisfactions["passage_length"] = False
     else:
         output += '- The number of sentences in the passage: -\n'
         finish = False
+        constraints_satisfactions["passage_length"] = False
     
     ### Sentence Length
     if detail["sentence_length_list"] != None:
@@ -256,10 +264,12 @@ def observe(constraints, detail, is_full_constraints=False):
             output += f'sentence ({i+1}) - {num} words -> ({sentence_length_satisfaction})\n'
             if sentence_length_satisfaction == "unsatisfied":
                 finish = False
+                constraints_satisfactions["sentence_length"] = False
         
     else:
         output += "- The number of words per sentence in the passage: -\n"
         finish = False
+        constraints_satisfactions["sentence_length"] = False
         
     ### Passage Vocab Levels
     if len(detail["passage_vocab_levels"]) > 0:
@@ -287,10 +297,12 @@ def observe(constraints, detail, is_full_constraints=False):
         output += f"-> ({passage_vocab_satisfaction})\n"
         if passage_vocab_satisfaction == "unsatisfied":
             finish = False
+            constraints_satisfactions["vocab_level"] = False
         
     else:
         output += "- Vocabulary Levels used in the passage: -\n"
         finish = False
+        constraints_satisfactions["vocab_level"] = False
         
     ### Sentence Vocab Levels
     if len(detail["statement_vocab_levels"]) > 0:
@@ -318,10 +330,12 @@ def observe(constraints, detail, is_full_constraints=False):
         output += f"-> ({statement_vocab_satisfaction})\n"
         if statement_vocab_satisfaction == "unsatisfied":
             finish = False
+            constraints_satisfactions["vocab_level"] = False
         
     else:
         output += "- Vocabulary Levels used in the statement: -\n"
         finish = False
+        constraints_satisfactions["vocab_level"] = False
         
     ### Statement Propositions
     if detail["statement_propositions"] != None:
@@ -331,10 +345,12 @@ def observe(constraints, detail, is_full_constraints=False):
         output += f'- Statement Propositions: {detail["statement_propositions"]} -> ({proposition_satisfaction})\n'
         if proposition_satisfaction == "unsatisfied":
             finish = False
+            constraints_satisfactions["statement_propositions"] = False
                 
     else:
         output += "- Statement Propositions: -\n"
         finish = False
+        constraints_satisfactions["statement_propositions"] = False
         
     if is_full_constraints:
         ### Evidence Scope
@@ -345,10 +361,12 @@ def observe(constraints, detail, is_full_constraints=False):
             output += f'- Evidence Scope: {detail["evidence_scope"]} -> ({es_satisfaction})\n'
             if es_satisfaction == "unsatisfied":
                 finish = False
+                constraints_satisfactions["evidence_scope"] = False
         
         else:
             output += "- Evidence Scope: -\n" 
             finish = False
+            constraints_satisfactions["evidence_scope"] = False
         
         ### Reasoning Type
         if detail["reasoning_type"] != None:
@@ -358,12 +376,14 @@ def observe(constraints, detail, is_full_constraints=False):
             output += f'- Reasoning Type: {detail["reasoning_type"]} -> ({rt_satisfaction})\n'
             if rt_satisfaction == "unsatisfied":
                 finish = False
+                constraints_satisfactions["reasoning_type"] = False
         
         else:
             output += "- Reasoning Type: -\n"
             finish = False
+            constraints_satisfactions["reasoning_type"] = False
         
-    return output, finish
+    return output, finish, constraints_satisfactions
     
 def eval(data_file, id2prediction):
     data_list = json.load(open(data_file))
@@ -440,28 +460,10 @@ if __name__ == "__main__":
                    "evidence_scope": "Inter",
                    "reasoning_type": "Inference"}
     
-    passage = """(1) In China, concerns about food safety have grown due to many serious food scandals in recent years.
-(2) These scandals have damaged public trust and made consumers more careful about the food they buy and eat.
-(3) People now often question whether their food is safe, clean, and free of anything that could harm them.
-(4) One reason for this worry is the large amount of processed food people eat in modern life.
-(5) Most packaged foods are made in factories where various chemicals are commonly added during the production process.
-(6) These added chemicals improve appearance, enhance taste, or help the food last longer on store shelves.
-(7) Although these chemicals are legal, laws clearly state which ones are allowed and which are not.
-(8) Unfortunately, the rules are not always followed, and some producers break the law to increase profits.
-(9) A known case involved a steamed bun maker in Zhejiang Province who used banned chemicals in his products.
-(10) He also reused old buns by mixing them into new ones, which he sold to schoolchildren.
-(11) This act not only broke food safety laws but also risked the health of many innocent consumers.
-(12) When asked why he did it, he admitted that his only goal was to make more money.
-(13) His actions are part of a larger problem where some people care more about profit than safety.
-(14) With strong competition and fast economic growth, many producers feel pressure to earn as much as possible.
-(15) This leads them to ignore ethics and the potential harm their choices may cause to the public.
-(16) These repeated cases show the urgent need for change and stronger rules in the food industry.
-(17) Better checks by the government and clearer production steps could improve safety and rebuild consumer trust.
-(18) People deserve to feel confident that their food is safe and made with their health in mind.
-(19) Without serious change, these problems will likely continue and may grow even worse in the near future.
-(20) It is clear that profit should never come before the safety and well-being of the public."""
+    passage = """(1) In recent years, China’s food industry has faced growing public concern due to repeated food safety scandals.
+(2) These scandals have led people to examine the honesty and quality of the food they regularly consume."""
 
-    statement = "Some producers ignore food safety laws, and this happens more often when they are under financial pressure."
+    statement = ""
     
     passage = [re.sub(r'\(\d+\)', '', text).strip() for text in passage.split("\n")]
     passage = " ".join(passage)
@@ -476,8 +478,9 @@ if __name__ == "__main__":
     detail["evidence_scope"] = None
     detail["reasoning_type"] = None
     
-    observation, finish = observe(constraints, detail)
+    observation, finish, constraints_state = observe(constraints, detail)
     
     print(observation)
+    print(constraints_state)
     print("Finish:", finish)
     

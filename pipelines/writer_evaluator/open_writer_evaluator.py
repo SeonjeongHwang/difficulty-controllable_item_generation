@@ -1,10 +1,18 @@
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch, os, json, tqdm, random, time, re
+import torch, os, json, tqdm, random, time, re, copy
 from vllm import LLM
 from vllm import SamplingParams
 import numpy as np
 import argparse
-from collections import Counter
+from collections import Counter, namedtuple
+
+Write_Passage = namedtuple('Write_Passage', ['passage'])
+Write_Sentence = namedtuple('Write_Sentence', ['index', 'text'])
+Insert_Sentence = namedtuple('Insert_Sentence', ['index', 'text'])
+Revise_Sentence = namedtuple('Revise_Sentence', ['index', 'text'])
+Remove_Sentence = namedtuple('Remove_Sentence', ['index'])
+Write_Statement = namedtuple('Write_Statement', ['statement'])
+Revise_Statement = namedtuple('Revise_Statement', ['statement'])
 
 import sys
 sys.path.append("/home/seonjeongh/DCAQG/box/dcqg/difficulty_eval")
@@ -32,17 +40,19 @@ TEMPERATURE = {"mixtral": 0.15,
                "phi": 0.5,
                "test": 0.7}
 
-C_TYPE2TEMPLATE = {"4c": "prompts/react_4c.txt",
-                   "fullc": "prompts/react_fullc.txt"}
+C_TYPE2TEMPLATE = {"4c": "react_4c.txt",
+                   "fullc": "react_fullc.txt"}
 C_TYPE2DATASET = {"4c": "/home/seonjeongh/DCAQG/box/data/Brown.True.dcqg-4c.test_small.json",
                   "fullc": "/home/seonjeongh/DCAQG/box/data/Brown.True.dcqg.test.json"}
 
 def parse_args():
-    ## python open_react.py --model_nickname qwen-7B --c_type 4c
+    ## python open_writer_evaluator.py --model_nickname qwen-7B --c_type 4c
     
     parser = argparse.ArgumentParser(description="QG test")
     parser.add_argument('--model_nickname', type=str, required=True, help='model nickname')
     parser.add_argument('--c_type', choices=["4c", "fullc"], help="Constraint Type")
+    parser.add_argument('--redundant_threshold', type=int, default=3)
+    parser.add_argument('--beam_size', type=int, default=3)
     parser.add_argument('--seed', type=int, default=2025)
     args = parser.parse_args()
     return args
@@ -69,14 +79,15 @@ class Generator:
             
         print("VLLM Generation Mode")
         self.model = LLM(model=model_name,
-                            dtype="auto",
-                            trust_remote_code="True",
-                            device=["cuda:0", "cuda:1"],
-                            tensor_parallel_size=torch.cuda.device_count()-2,
-                            max_model_len=30000,
-                            gpu_memory_utilization=0.5,
-                            max_num_seqs=128,
-                            disable_cascade_attn=True)
+                         seed=args.seed,
+                         dtype="auto",
+                         trust_remote_code="True",
+                         device=["cuda:0", "cuda:1"],
+                         tensor_parallel_size=torch.cuda.device_count()-2,
+                         max_model_len=30000,
+                         gpu_memory_utilization=0.5,
+                         max_num_seqs=128,
+                         disable_cascade_attn=True)
                 
     def get_examples(self, data_file):
         data_list = json.load(open(data_file))
@@ -84,9 +95,8 @@ class Generator:
         
         id2examples = dict()
         for data in tqdm.tqdm(data_list):
-            combinations = data["combinations"]
-            np.random.shuffle(combinations)
-            for i, combs in enumerate(combinations[:1]):
+            combinations = data["combinations"][-1:]
+            for i, combs in enumerate(combinations):
                 if not combs["usable"]:
                     continue
                 
@@ -107,8 +117,12 @@ class Generator:
                                    "input_prompt": input_prompt,
                                    "passage": [],
                                    "statement": "",
+                                   "action_history": [],
                                    "observations": dict(),
-                                   "finish": False}
+                                   "constraint_states": dict(),
+                                   "finish": False,
+                                   "terminate": False,
+                                   "Redundancy_Num": 0}
             
         return id2examples
             
@@ -122,20 +136,32 @@ class Generator:
                 if action_name == "Write_Passage":
                     passage_parsing_pattern = r'\(\d+\)\s(.*?)\n'
                     sentences = re.findall(passage_parsing_pattern, action_result+"\n")
-                    actions.append({"action": action_name,
-                                    "passage": sentences})
-                elif action_name in ["Insert_Sentence", "Revise_Sentence"]:
+                    actions.append(Write_Passage(passage=sentences))
+                    
+                elif action_name in ["Write_Sentence", "Insert_Sentence", "Revise_Sentence"]:
                     match = re.match(r'\((\d+)\)\s+(.*)', action_result)
+                    if match is None:
+                        continue
                     number, sentence = int(match.group(1)), match.group(2)
-                    actions.append({"action": action_name,
-                                    "index": number,
-                                    "sentence": sentence})
+                    if action_name == "Write_Sentence":
+                        actions.append(Write_Sentence(index=number,
+                                                      text=sentence))
+                    elif action_name == "Insert_Sentence":
+                        actions.append(Insert_Sentence(index=number,
+                                                       text=sentence))
+                    else:
+                        actions.append(Revise_Sentence(index=number,
+                                                       text=sentence))
+                        
                 elif action_name == "Remove_Sentence":
-                    actions.append({"action": action_name,
-                                    "index": int(action_result)})
-                elif action_name in ["Write_Statement", "Revise_Statement"]:
-                    actions.append({"action": action_name,
-                                    "statement": action_result})
+                    actions.append(Remove_Sentence(index=int(action_result)))
+                    
+                elif action_name == "Write_Statement":
+                    actions.append(Write_Statement(statement=action_result))
+                    
+                elif action_name == "Revise_Statement":
+                    actions.append(Revise_Statement(statement=action_result))
+                    
             return actions
         
         def get_thought_action(response, step):
@@ -152,16 +178,18 @@ class Generator:
         
         def step(actions, example, propositionalizer):
             for action in actions:
-                if action["action"] == "Write_Passage":
-                    example["passage"] = action["passage"]
-                elif action["action"] == "Insert_Sentence":
-                    example["passage"] = example["passage"][:action["index"]-1] + [action["sentence"]] + example["passage"][action["index"]-1:]
-                elif action["action"] == "Revise_Sentence":
-                    example["passage"][action["index"]-1] = action["sentence"]
-                elif action["action"] == "Remove_Sentence":
-                    example["passage"] = example["passage"][:action["index"]-1] + example["passage"][action["index"]:]
-                elif action["action"] in ["Write_Statement", "Revise_Statement"]:
-                    example["statement"] = action["statement"]
+                if type(action).__name__ == "Write_Passage":
+                    example["passage"] = copy.deepcopy(action.passage)
+                elif type(action).__name__ == "Write_Sentence":
+                    example["passage"].append(action.text)
+                elif type(action).__name__ == "Insert_Sentence":
+                    example["passage"] = example["passage"][:action.index-1] + [action.text] + example["passage"][action.index-1:]
+                elif type(action).__name__ == "Revise_Sentence":
+                    example["passage"][action.index-1] = action.text
+                elif type(action).__name__ == "Remove_Sentence":
+                    example["passage"] = example["passage"][:action.index-1] + example["passage"][action.index:]
+                elif type(action).__name__ in ["Write_Statement", "Revise_Statement"]:
+                    example["statement"] = action.statement
             
             _, detail = get_values("\n".join(example["passage"]), example["statement"])
             if example["statement"] != "":
@@ -173,19 +201,25 @@ class Generator:
             detail["evidence_scope"] = None
             detail["reasoning_type"] = None
             
-            observation, finish = observe(example["constraints"], detail, args.c_type == "fullc")
+            observation, finish, constraint_states = observe(example["constraints"], detail, args.c_type == "fullc")
             example["observations"][example["step"]] = observation
+            example["constraint_states"][example["step"]] = constraint_states
             example["finish"] = finish
             
             return observation, finish, example
         
         print(f"Top-k: {self.top_k} | Top-p: {self.top_p} | Temperature: {self.temperature}")
                     
-        for _ in range(20):
+        num_examples = len(id2examples)
+        num_redundancy_fail = 0
+        
+        print("Total # examples:", num_examples)
+        
+        for _ in range(30):
             print(f"### Round {_+1} ###")
             id_list, examples = [], []
             for id, example in id2examples.items():
-                if not example["finish"]:
+                if not example["finish"] and not example["terminate"]:
                     id_list.append(id)
                     messages = [
                         {"role": "user", "content": example["input_prompt"] + f"\nThought {id2examples[id]['step']}: "}
@@ -203,7 +237,7 @@ class Generator:
                                     temperature=self.temperature,
                                     stop=f"Observation {id2examples[id]['step']}:",
                                     max_tokens=30000,
-                                    n=3)              
+                                    n=args.beam_size)              
 
             if len(examples) == 0:
                 print("All Done")
@@ -214,21 +248,38 @@ class Generator:
                 for output in r_.outputs:
                     r = output.text
                     
-                    print(r)
-                    print("-"*30)
+                    #print(r)
                     
                     thought, action_sequence = get_thought_action(r, id2examples[id]["step"])
                     
                     if thought == None:
                         continue
                     actions = parsing_action(action_sequence)
+                    
+                    #print(actions)
+                    #print("-"*30)
+                    
                     if len(actions) == 0:
                         continue
                     
+                    ### Check action redundancy
+                    if actions in id2examples[id]["action_history"]:
+                        id2examples[id]["Redundancy_Num"] += 1
+                        #print("Redundant")
+                        #print(id2examples[id]["Redundancy_Num"], args.redundant_threshold*args.beam_size)
+                        
+                        if id2examples[id]["Redundancy_Num"] > args.redundant_threshold*args.beam_size:
+                            id2examples[id]["terminate"] = True
+                            num_redundancy_fail += 1
+                            break
+                        
+                        continue
+                        
+                    id2examples[id]["action_history"].append(actions)
                     observation, finish, id2examples[id] = step(actions, id2examples[id], self.propositionalizer)
                     
-                    print(observation)
-                    print("="*30)
+                    #print(observation)
+                    #print("="*30)
                     
                     current_step = id2examples[id]["step"]
                     new_prompt = ""
@@ -242,10 +293,10 @@ class Generator:
                         break                    
                     
                     id2examples[id]["step"] += 1
-                    
                     break
-                
-        print("Not Finish:", len(examples))
+                    
+        print(f"Not Finish: {len(examples)}/{num_examples}")
+        print(f"Redundancy_Error: {num_redundancy_fail}/{num_examples}")
             
         return id2examples
         
@@ -275,6 +326,7 @@ def main():
                          "passage": examples["passage"],
                          "statement": examples["statement"],
                          "final_observation": examples["observations"][examples["step"]-1],
+                         "final_constraint_states": examples["constraint_states"][examples["step"]-1],
                          "final_step": examples["step"],
                          "is_success": examples["finish"]}
         detail_result = {"id": id,
@@ -283,6 +335,7 @@ def main():
                          "statement": examples["statement"],
                          "input_prompt": examples["input_prompt"],
                          "observations": examples["observations"],
+                         "constraint_states": examples["constraint_states"],
                          "final_step": examples["step"],
                          "is_success": examples["finish"]}
         
